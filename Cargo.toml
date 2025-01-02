@@ -1,0 +1,4 @@
+[workspace]
+members = ["xtask", "midi_panic", "top_liner"]
+exclude = ["nih-plug"]
+resolver = "3"
