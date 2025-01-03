@@ -9,5 +9,6 @@ Some useful midi effects for keyboard players on stage
 ## Building
 At workspace root, run
 ```
+git submodule update --init
 cargo xtask bundle [plugin_name] --release
 ```
