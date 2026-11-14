@@ -1,18 +1,18 @@
-use nih_plug::prelude::*;
+use nice_plug::midi::{Channel, Key, VoiceID};
+use nice_plug::prelude::*;
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 struct NoteOnValues {
-    timing: u32,
-    voice_id: Option<i32>,
-    channel: u8,
+    voice_id: VoiceID,
+    channel: Channel,
     velocity: f32,
 }
 
 enum PlayingState {
     NotPlaying,
-    ChordDetecting(u32, u8, NoteOnValues),
-    Playing(u8, u8),
+    ChordDetecting(u32, Key, NoteOnValues),
+    Playing(Channel, Key),
 }
 
 // Sends midi note off when trigger is on
@@ -21,14 +21,8 @@ struct TopLiner {
     playing_state: PlayingState,
 }
 
-#[derive(Params)]
+#[derive(Params, Default)]
 struct TopLinerParam {}
-
-impl Default for TopLinerParam {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Default for TopLiner {
     fn default() -> Self {
@@ -56,6 +50,7 @@ impl Plugin for TopLiner {
 
     type SysExMessage = ();
     type BackgroundTask = ();
+    type Editor = ();
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
@@ -70,8 +65,12 @@ impl Plugin for TopLiner {
         // forward all events
         while let Some(event) = context.next_event() {
             match event {
-                NoteEvent::Choke { channel, note, .. }
-                | NoteEvent::NoteOff { channel, note, .. } => {
+                NoteEvent::Choke {
+                    channel, key: note, ..
+                }
+                | NoteEvent::NoteOff {
+                    channel, key: note, ..
+                } => {
                     match self.playing_state {
                         PlayingState::ChordDetecting(_, _, _) => {
                             self.playing_state = PlayingState::NotPlaying;
@@ -81,7 +80,7 @@ impl Plugin for TopLiner {
                             if current_channel == channel && current_note == note {
                                 self.playing_state = PlayingState::NotPlaying;
                                 // release current top note
-                                context.send_event(event);
+                                let _ = context.try_send_event(event);
                             }
                         }
                     }
@@ -90,7 +89,7 @@ impl Plugin for TopLiner {
                     timing,
                     voice_id,
                     channel,
-                    note,
+                    key: note,
                     velocity,
                 } => {
                     match self.playing_state {
@@ -100,7 +99,6 @@ impl Plugin for TopLiner {
                                     target_timing,
                                     note,
                                     NoteOnValues {
-                                        timing,
                                         voice_id,
                                         channel,
                                         velocity,
@@ -109,43 +107,47 @@ impl Plugin for TopLiner {
                             }
                         }
                         PlayingState::NotPlaying => {
-                            self.playing_state =
-                                PlayingState::ChordDetecting(timing + 1024, note, NoteOnValues {
-                                    timing,
+                            self.playing_state = PlayingState::ChordDetecting(
+                                timing + 1024,
+                                note,
+                                NoteOnValues {
                                     voice_id,
                                     channel,
                                     velocity,
-                                });
+                                },
+                            );
                         }
                         PlayingState::Playing(current_channel, current_note) => {
                             if note > current_note {
                                 // This case, need to turn off existing note
-                                context.send_event(NoteEvent::NoteOff {
+                                let _ = context.try_send_event(NoteEvent::NoteOff {
                                     timing,
                                     voice_id,
                                     channel: current_channel,
-                                    note: current_note,
+                                    key: current_note,
                                     velocity,
                                 });
                                 // Then send the highest note
-                                context.send_event(event);
+                                let _ = context.try_send_event(event);
                                 self.playing_state = PlayingState::Playing(channel, note);
                             }
                         }
                     }
                 }
-                _ => context.send_event(event),
+                _ => {
+                    let _ = context.try_send_event(event);
+                }
             }
         }
 
         if let PlayingState::ChordDetecting(target_timing, note, values) = self.playing_state {
             let num_samples = buffer.samples() as u32;
             if target_timing < num_samples {
-                context.send_event(NoteEvent::NoteOn {
+                let _ = context.try_send_event(NoteEvent::NoteOn {
                     timing: target_timing,
                     voice_id: values.voice_id,
                     channel: values.channel,
-                    note,
+                    key: note,
                     velocity: values.velocity,
                 });
                 self.playing_state = PlayingState::Playing(values.channel, note);
@@ -173,5 +175,5 @@ impl Vst3Plugin for TopLiner {
         &[Vst3SubCategory::Instrument, Vst3SubCategory::Tools];
 }
 
-nih_export_clap!(TopLiner);
-nih_export_vst3!(TopLiner);
+nice_export_clap!(TopLiner);
+nice_export_vst3!(TopLiner);

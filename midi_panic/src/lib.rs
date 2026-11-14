@@ -1,4 +1,5 @@
-use nih_plug::prelude::*;
+use nice_plug::midi::{Channel, Key, VoiceID};
+use nice_plug::prelude::*;
 use std::sync::Arc;
 
 // Sends midi note off when trigger is on
@@ -47,6 +48,7 @@ impl Plugin for MidiPanic {
 
     type SysExMessage = ();
     type BackgroundTask = ();
+    type Editor = ();
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
@@ -60,7 +62,7 @@ impl Plugin for MidiPanic {
     ) -> ProcessStatus {
         // forward all events
         while let Some(event) = context.next_event() {
-            context.send_event(event);
+            let _ = context.try_send_event(event);
         }
 
         // Detect trigger edge and early return
@@ -80,11 +82,11 @@ impl Plugin for MidiPanic {
         let last_timing = if num_samples == 0 { 0 } else { num_samples - 1 };
         for channel in 0..16 {
             for note in 0..128 {
-                context.send_event(NoteEvent::NoteOff {
+                let _ = context.try_send_event(NoteEvent::NoteOff {
                     timing: last_timing,
-                    voice_id: None,
-                    channel,
-                    note,
+                    voice_id: VoiceID::Wildcard,
+                    channel: Channel::Number(channel),
+                    key: Key::Number(note),
                     velocity: 64.0,
                 });
             }
@@ -108,5 +110,5 @@ impl Vst3Plugin for MidiPanic {
         &[Vst3SubCategory::Instrument, Vst3SubCategory::Tools];
 }
 
-nih_export_clap!(MidiPanic);
-nih_export_vst3!(MidiPanic);
+nice_export_clap!(MidiPanic);
+nice_export_vst3!(MidiPanic);
