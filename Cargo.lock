@@ -502,6 +502,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "program_change_wire"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-queue",
+ "nice-assert-no-alloc",
+ "nice-plug",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["xtask", "midi_panic", "top_liner"]
+members = ["xtask", "midi_panic", "top_liner", "program_change_wire"]
 resolver = "3"
 
 [workspace.dependencies]

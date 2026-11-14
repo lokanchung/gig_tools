@@ -1,0 +1,17 @@
+[package]
+name = "program_change_wire"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["Lokan Chung <lokanchung@gmail.com>"]
+license = "ISC"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nice-plug.workspace = true
+crossbeam-queue = "0.3"
+
+[dev-dependencies]
+nice-assert-no-alloc = "1.0"
